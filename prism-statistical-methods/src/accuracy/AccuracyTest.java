@@ -29,8 +29,8 @@ import fingerprinter.SmilesIO;
 
 public class AccuracyTest {
 
-	private static String runDir = "/Users/michaelskinnider/Desktop/ecfp6/v3_SEM/";
-	private static String parentDir = "/Users/michaelskinnider/Desktop/accuracy_analysis/output_2/";
+	private static String runDir = "/Users/michaelskinnider/Desktop/ecfp6/v4/";
+	private static String parentDir = "/Users/michaelskinnider/Desktop/phylo_analysis_3/";
 	private static String directory = "";
 	
 	public static void main(String[] args) throws IOException,
@@ -45,24 +45,24 @@ public class AccuracyTest {
 
 	private static class Test {
 
-		private Map<String,SmilesPackage> results = new HashMap<String,SmilesPackage>();
-		private List<TanimotoPackage> tanimoto = new ArrayList<TanimotoPackage>();
-
 		public void run() throws IOException,
 				BadSmilesToFingerprinterException, InterruptedException,
 				CDKException, NoBitsetException {
 			String[] subdirectories = Files.getAllDirectories(parentDir);
 			if (subdirectories != null) {
 				for (String subdirectory : subdirectories) {
+					Map<String,SmilesPackage> results = new HashMap<String,SmilesPackage>();
+					List<TanimotoPackage> tanimoto = new ArrayList<TanimotoPackage>();
+
 					directory = parentDir + File.separator + subdirectory;
-					loadKeys();
+					loadKeys(results, tanimoto);
 
-					parseAntismashOutput();
-					parseNpsearcherOutput();
-					parsePrismOutput();
+					parseAntismashOutput(results, tanimoto);
+					parseNpsearcherOutput(results, tanimoto);
+					parsePrismOutput(results, tanimoto);
 
-					calculateTanimotoCoefficients();
-					calculatePackageScores();
+					calculateTanimotoCoefficients(results, tanimoto);
+					calculatePackageScores(results, tanimoto);
 				}
 			}
 		}
@@ -75,7 +75,7 @@ public class AccuracyTest {
 		 *            the cluster directory
 		 * @throws IOException
 		 */
-		public void loadKeys() throws IOException {
+		public void loadKeys(Map<String,SmilesPackage> results, List<TanimotoPackage> tanimoto) throws IOException {
 			BufferedReader br = new BufferedReader(new FileReader(directory + File.separator + "smiles.txt"));
 			String line = null;
 			while ((line = br.readLine()) != null) {
@@ -90,7 +90,7 @@ public class AccuracyTest {
 			br.close();
 		}
 
-		public void parseAntismashOutput() throws IOException {
+		public void parseAntismashOutput(Map<String,SmilesPackage> results, List<TanimotoPackage> tanimoto) throws IOException {
 			String extension = ".smi";
 			File[] files = Files.getDirectoryFiles(directory, extension);
 			for (File file : files) {
@@ -115,7 +115,7 @@ public class AccuracyTest {
 			}
 		}
 
-		public void parseNpsearcherOutput() throws IOException {
+		public void parseNpsearcherOutput(Map<String,SmilesPackage> results, List<TanimotoPackage> tanimoto) throws IOException {
 			String extension = ".smiles";
 			File[] files = Files.getDirectoryFiles(directory, extension);
 			for (File file : files) {
@@ -148,7 +148,7 @@ public class AccuracyTest {
 			}
 		}
 
-		public void parsePrismOutput() throws IOException {
+		public void parsePrismOutput(Map<String,SmilesPackage> results, List<TanimotoPackage> tanimoto) throws IOException {
 			String extension = ".txt";
 			File[] files = Files.getDirectoryFiles(directory, extension);
 			for (File file : files) {
@@ -172,7 +172,7 @@ public class AccuracyTest {
 			}
 		}
 
-		public void calculateTanimotoCoefficients() throws IOException,
+		public void calculateTanimotoCoefficients(Map<String,SmilesPackage> results, List<TanimotoPackage> tanimoto) throws IOException,
 				BadSmilesToFingerprinterException, InterruptedException,
 				CDKException {
 			for (Map.Entry<String, SmilesPackage> entry : results.entrySet()) {
@@ -203,9 +203,9 @@ public class AccuracyTest {
 				if (Float.isNaN(prismAvg))
 					prismAvg = 0.0f;				
 					
-				tp.antismashAvg = antismashAvg;
-				tp.npsearcherAvg = npsearcherAvg;
-				tp.prismAvg = prismAvg;
+				tp.antismashMed = antismashAvg;
+				tp.npsearcherMed = npsearcherAvg;
+				tp.prismMed = prismAvg;
 				
 				tp.antismashTop = top(antismashFps);
 				tp.npsearcherTop = top(npsearcherFps);
@@ -215,15 +215,15 @@ public class AccuracyTest {
 
 				System.out.println("Calculated tanimoto scores for " + key + "\n"
 						+ "\tPRISM:\t\t" + prismFps.size() + " Tanimoto scores\t" 
-						+ "Avg: " + tp.prismAvg + "\tTop: " + tp.prismTop
+						+ "Avg: " + tp.prismMed + "\tTop: " + tp.prismTop
 						+ "\n\tNP.searcher:\t" + npsearcherFps.size() + " Tanimoto scores\t" 
-						+ "Avg: " + tp.npsearcherAvg + "\tTop: " + tp.npsearcherTop
+						+ "Avg: " + tp.npsearcherMed + "\tTop: " + tp.npsearcherTop
 						+ "\n\tantiSMASH:\t" + antismashFps.size() + " Tanimoto scores\t" 
-						+ "Avg: " + tp.antismashAvg + "\tTop: " + tp.antismashTop);
+						+ "Avg: " + tp.antismashMed + "\tTop: " + tp.antismashTop);
 			}
 		}
 
-		public void calculatePackageScores() throws IOException {
+		public void calculatePackageScores(Map<String,SmilesPackage> results, List<TanimotoPackage> tanimoto) throws IOException {
 			int prismSize = 0;
 			int npsearcherSize = 0;
 			int antismashSize = 0;
@@ -238,19 +238,19 @@ public class AccuracyTest {
 
 			for (int i = 0; i < tanimoto.size(); i++) {
 				TanimotoPackage tp = tanimoto.get(i);
-				if (tp.prismAvg >= 0)
+				if (tp.prismMed >= 0)
 					prismSize++;
-				prismAvg[i] = tp.prismAvg;
+				prismAvg[i] = tp.prismMed;
 				prismTop[i] = tp.prismTop;
 				
-				if (tp.npsearcherAvg >= 0) 
+				if (tp.npsearcherMed >= 0) 
 					npsearcherSize++;
-				npsearcherAvg[i] = tp.npsearcherAvg;
+				npsearcherAvg[i] = tp.npsearcherMed;
 				npsearcherTop[i] = tp.npsearcherTop;
 				
-				if (tp.antismashAvg >= 0) 
+				if (tp.antismashMed >= 0) 
 					antismashSize++;
-				antismashAvg[i] = tp.antismashAvg;
+				antismashAvg[i] = tp.antismashMed;
 				antismashTop[i] = tp.antismashTop;
 			}
 			
@@ -260,53 +260,35 @@ public class AccuracyTest {
 			double prism_antismash = ttest.tTest(prismAvg, antismashAvg);
 			double prism_npsearcher = ttest.tTest(prismAvg, npsearcherAvg);
 			double antismash_npsearcher = ttest.tTest(antismashAvg, npsearcherAvg);
-			double top_prism_antismash = ttest.tTest(prismTop, antismashTop);
-			double top_prism_npsearcher = ttest.tTest(prismTop, npsearcherTop);
-			double top_antismash_npsearcher = ttest.tTest(antismashTop, npsearcherTop);
 			
 			StandardDeviation sd = new StandardDeviation();
 			double prismSd = sd.evaluate(prismAvg);
 			double npsearcherSd = sd.evaluate(npsearcherAvg);
 			double antismashSd = sd.evaluate(antismashAvg);
-			double prismSem = prismSd / Math.sqrt(tanimoto.size());
-			double npsearcherSem = npsearcherSd / Math.sqrt(tanimoto.size());
-			double antismashSem = antismashSd / Math.sqrt(tanimoto.size());
 
 			double prismAvgAvg = average(prismAvg);
-			double prismAvgTop = average(prismTop);
 			double npsearcherAvgAvg = average(npsearcherAvg);
-			double npsearcherAvgTop = average(npsearcherTop);
 			double antismashAvgAvg = average(antismashAvg);
-			double antismashAvgTop = average(antismashTop);
 			
 			System.out.println("----------------------------------");
 			System.out.println("----------------------------------");
 			System.out.println("Analysis completed.");
 			System.out.println("Generated " + prismSize + " PRISM predictions\n\t"
-					+ "Average average Tanimoto coefficient: " + prismAvgAvg + "\n\t"
-					+ "Average top Tanimoto coefficient: " + prismAvgTop);
+					+ "Average median Tanimoto coefficient: " + prismAvgAvg);
 			System.out.println("Generated " + antismashSize + " antiSMASH predictions\n\t"
-					+ "Average average Tanimoto coefficient: " + antismashAvgAvg + "\n\t"
-					+ "Average top Tanimoto coefficient: " + antismashAvgTop);
+					+ "Average median Tanimoto coefficient: " + antismashAvgAvg);
 			System.out.println("Generated " + npsearcherSize + " NP.searcher predictions\n\t"
-					+ "Average average Tanimoto coefficient: " + npsearcherAvgAvg + "\n\t"
-					+ "Average top Tanimoto coefficient: " + npsearcherAvgTop);
+					+ "Average median Tanimoto coefficient: " + npsearcherAvgAvg);
 			System.out.println("----------------------------------");
 			System.out.println("----------------------------------");
 			System.out.println("Standard distribution for PRISM predictions: " + prismSd);
 			System.out.println("Standard distribution for antiSMASH predictions: " + antismashSd);
 			System.out.println("Standard distribution for NP.searcher predictions: " + npsearcherSd);
-			System.out.println("Standard error of the mean for PRISM predictions: " + prismSem);
-			System.out.println("Standard error of the mean for antiSMASH predictions: " + antismashSem);
-			System.out.println("Standard error of the mean for NP.searcher predictions: " + npsearcherSem);
 			System.out.println("----------------------------------");
 			System.out.println("----------------------------------");
 			System.out.println("p-value for PRISM/antiSMASH comparison: " + prism_antismash);
 			System.out.println("p-value for PRISM/npsearcher comparison: " + prism_npsearcher);
 			System.out.println("p-value for npsearcher/antiSMASH comparison: " + antismash_npsearcher);
-			System.out.println("p-value for top PRISM/top antiSMASH comparison: " + top_prism_antismash);
-			System.out.println("p-value for top PRISM/top npsearcher comparison: " + top_prism_npsearcher);
-			System.out.println("p-value for top npsearcher/top antiSMASH comparison: " + top_antismash_npsearcher);
 			
 			// write 
 			String out = runDir + new File(directory).getName() + ".csv";
@@ -314,34 +296,37 @@ public class AccuracyTest {
 			CSVPrinter cw = new CSVPrinter(new FileWriter(out), csvFileFormat);
 
 			List<String> header = new ArrayList<String>();
-			List<String> prismRow = new ArrayList<String>();
-			List<String> antismashRow = new ArrayList<String>();
-			List<String> npsearcherRow = new ArrayList<String>();
-			
 			header.add("Software");
-			header.add("Average");
-			header.add("SD");
-			header.add("SEM");
-			
-			prismRow.add("PRISM");
-			prismRow.add(prismAvgAvg + "");
-			prismRow.add(prismSd + "");
-			prismRow.add(prismSem + "");
-			
-			antismashRow.add("antiSMASH");
-			antismashRow.add(antismashAvgAvg + "");
-			antismashRow.add(antismashSd + "");
-			antismashRow.add(antismashSem + "");
-			
-			npsearcherRow.add("NP.searcher");
-			npsearcherRow.add(npsearcherAvgAvg + "");
-			npsearcherRow.add(npsearcherSd + "");
-			npsearcherRow.add(npsearcherSem + "");
-			
+			header.add("Tc");
 			cw.printRecord(header);
-			cw.printRecord(prismRow);
-			cw.printRecord(antismashRow);
-			cw.printRecord(npsearcherRow);
+			
+			// add PRISM Tc's
+			for (int i = 0; i < tanimoto.size(); i++) {
+				List<String> row = new ArrayList<String>();
+				TanimotoPackage tp = tanimoto.get(i);
+				row.add("PRISM");
+				row.add(tp.prismMed + "");
+				cw.printRecord(row);
+			}
+
+			// add antiSMASH Tc's
+			for (int i = 0; i < tanimoto.size(); i++) {
+				List<String> row = new ArrayList<String>();
+				TanimotoPackage tp = tanimoto.get(i);
+				row.add("antiSMASH");
+				row.add(tp.antismashMed + "");
+				cw.printRecord(row);
+			}
+
+			// add PRISM Tc's
+			for (int i = 0; i < tanimoto.size(); i++) {
+				List<String> row = new ArrayList<String>();
+				TanimotoPackage tp = tanimoto.get(i);
+				row.add("NP.searcher");
+				row.add(tp.npsearcherMed + "");
+				cw.printRecord(row);
+			}
+			
 			cw.flush();
 			cw.close();
 		}
